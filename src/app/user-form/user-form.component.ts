@@ -1,6 +1,7 @@
 // user-form.component.ts
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { interval, Observable, Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-user-form',
@@ -60,9 +61,10 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
     }
   `]
 })
-export class UserFormComponent implements OnInit {
+export class UserFormComponent implements OnInit, OnDestroy {
   userForm!: FormGroup;
   submitted = false;
+  private subscription: Subscription = new Subscription();
 
   constructor(private fb: FormBuilder) { }
 
@@ -72,6 +74,51 @@ export class UserFormComponent implements OnInit {
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]]
     });
+
+   const simpleObservable = new Observable(subscriber => {
+      subscriber.next('Hello');
+      subscriber.next('World');
+  
+      //after 2 secs emit the value and complete
+      setTimeout(() => {
+        subscriber.next("Rxjs is awesome");
+        subscriber.complete();
+      },2000);
+    });
+  
+  
+    this.subscription = simpleObservable.subscribe({
+      next: value => console.log(value),
+      error: err => console.error(err),
+      complete: ()  => console.log('Observable complete')
+    })
+
+    //creating an observable
+    const countObservable = new Observable<number>(subscriber => {
+      //define a counter
+      let count = 0;
+      let newInterval = setInterval(() =>{
+        subscriber.next(Date.now());
+        count++;
+        if(count >=5){
+          subscriber.complete();
+          clearInterval(newInterval);
+        }
+      }, 1000);
+
+      return () =>{
+        clearInterval(newInterval);
+      }
+
+      this.subscription = countObservable.subscribe({
+        next: value => console.log(value),
+        error: err => console.log(err),
+        complete: () => console.log('Observable complete')
+      })
+
+
+    })
+
   }
 
   onSubmit(): void {
@@ -86,4 +133,11 @@ export class UserFormComponent implements OnInit {
   get name() { return this.userForm.get('name'); }
   get email() { return this.userForm.get('email'); }
   get password() { return this.userForm.get('password'); }
+
+  ngOnDestroy() : void {
+    if(this.subscription) {
+      this.subscription.unsubscribe();
+      console.log('unsubscribed');
+    }
+  }
 }
